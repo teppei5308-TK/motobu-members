@@ -200,7 +200,8 @@ h3{font-family:var(--mincho);font-size:1rem;letter-spacing:.16em;font-weight:700
 <div class="state center" id="sending"><div class="spinner"></div><p>登録しています…</p></div>
 
 <!-- ===== エラー ===== -->
-<div class="state center" id="error"><h2>表示できません</h2><p id="errMsg">この画面はLINEアプリ内でお開きください。</p></div>
+<div class="state center" id="error"><h2>表示できません</h2><p id="errMsg">この画面はLINEアプリ内でお開きください。</p>
+  <button class="submit" id="retry" style="display:none;margin-top:1.2rem;width:auto;padding:.8rem 2rem" onclick="location.reload()">もう一度試す</button></div>
 
 <!-- ===== マイページ（登録直後・登録済み共通） ===== -->
 <div class="state" id="mypage">
@@ -219,7 +220,7 @@ h3{font-family:var(--mincho);font-size:1rem;letter-spacing:.16em;font-weight:700
     <p class="exp" id="c-exp"></p>
   </div>
   <p class="show">お会計のとき、<b>この画面をスタッフにお見せください</b><br><span style="font-size:.7rem">※ ポイント・特典は現在、那覇店でご利用いただけます</span></p>
-  <a class="fradd" href="https://lin.ee/XXXXXXX">もとぶ牧場 那覇店の公式LINEを友だち追加<span>ポイント通知・特典のご案内が届きます</span></a>
+  <a class="fradd" href="https://line.me/R/ti/p/@956lpgth">もとぶ牧場 那覇店の公式LINEを友だち追加<span>ポイント通知・特典のご案内が届きます</span></a>
 
   <div class="next">
     <p class="t">NEXT REWARD</p>
@@ -251,7 +252,7 @@ h3{font-family:var(--mincho);font-size:1rem;letter-spacing:.16em;font-weight:700
 /* ===== 設定 ===== */
 const LIFF_ID = '2011569278-JB6YqS6q';
 const GAS_URL = 'https://script.google.com/macros/s/AKfycbyrJZpUwgBXEFvh3DQXdZ22gm6d7AgugFT1utilMVCvkSzA4ufRNRC0D_rTiC27CzW2Dg/exec';
-const FRIEND_URL = 'https://lin.ee/XXXXXXX';   // 公式LINEの友だち追加URL
+const FRIEND_URL = 'https://line.me/R/ti/p/@956lpgth';   // 公式LINEの友だち追加URL
 
 /* 特典・ランク（GASの CONFIG と同じ内容にしておく。GASから取得できた場合はそちらを優先） */
 let REWARDS = [
@@ -269,6 +270,22 @@ let RANKS = [
 ];
 
 const $ = id => document.getElementById(id);
+/* GASは初回応答が遅いことがあるので、タイムアウト付きで最大3回まで試す */
+async function fetchRetry(url, opts, tries = 3, timeoutMs = 20000){
+  let lastErr;
+  for (let i = 0; i < tries; i++){
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, Object.assign({}, opts, { signal: ctrl.signal }));
+      clearTimeout(t);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.json();
+    } catch (e) { clearTimeout(t); lastErr = e; if (i === 1) setLoading('少し時間がかかっています…'); }
+  }
+  throw lastErr;
+}
+function setLoading(msg){ const el = document.querySelector('#loading p'); if (el) el.textContent = msg; }
 const show = id => { document.querySelectorAll('.state').forEach(e => e.classList.remove('on')); $(id).classList.add('on'); };
 let userId = '', staffCode = new URLSearchParams(location.search).get('staff') || '';
 
@@ -327,15 +344,18 @@ function demo(){
       const st = new URLSearchParams(location.search).get('liff.state');
       if (st) staffCode = new URLSearchParams(st.replace(/^\?/, '')).get('staff') || '';
     }
-    const res = await fetch(`${GAS_URL}?action=check&userId=${encodeURIComponent(userId)}`);
-    const data = await res.json();
+    const cached = readCache();
+    if (cached) renderMember(cached, false);   // 前回の会員証を先に表示し、裏で最新化
+    const data = await fetchRetry(`${GAS_URL}?action=check&userId=${encodeURIComponent(userId)}`);
     if (data.rewards && data.rewards.length) REWARDS = data.rewards;
     if (data.ranks && data.ranks.length) RANKS = data.ranks;
-    if (data.registered) { renderMember(data.member, false); return; }
+    if (data.registered) { writeCache(data.member); renderMember(data.member, false); return; }
     $('name').value = profile.displayName || '';
     show('form');
   } catch (e) {
-    $('errMsg').textContent = 'この画面はLINEアプリ内でお開きください。';
+    if (readCache()) return;   // キャッシュ表示できていればそのまま
+    $('errMsg').textContent = userId ? '会員情報を取得できませんでした。通信環境をご確認のうえ、もう一度お試しください。' : 'この画面はLINEアプリ内でお開きください。';
+    $('retry').style.display = userId ? 'inline-block' : 'none';
     show('error');
   }
 })();
@@ -353,15 +373,17 @@ $('submit').addEventListener('click', async () => {
   if (!ok) return;
   show('sending');
   try {
-    const res = await fetch(GAS_URL, {
+    setLoading('登録しています…');
+    const data = await fetchRetry(GAS_URL, {
       method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ action: 'register', userId, name, birth, area, store, staff: staffCode })
-    });
-    const data = await res.json();
+    }, 3, 30000);
     if (!data.ok) throw new Error(data.error || 'failed');
+    writeCache(data.member);
     renderMember(data.member, !data.duplicated);
   } catch (e) {
-    $('errMsg').textContent = '登録に失敗しました。通信環境をご確認のうえ、もう一度お試しください。';
+    $('errMsg').textContent = '登録に時間がかかっています。もう一度お試しください（二重登録にはなりません）。';
+    $('retry').style.display = 'inline-block';
     show('error');
   }
 });
@@ -370,5 +392,7 @@ async function checkFriendship(){
   try { const f = await liff.getFriendship(); if (f && f.friendFlag) return; } catch (e) {}
   document.querySelectorAll('.fradd').forEach(e => { e.href = FRIEND_URL; e.style.display = 'block'; });
 }
+function readCache(){ try { const v = JSON.parse(localStorage.getItem('motobukai_member') || 'null'); return v && v.id ? v : null; } catch (e) { return null; } }
+function writeCache(m){ try { localStorage.setItem('motobukai_member', JSON.stringify(m)); } catch (e) {} }
 function esc(s){ return String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
 </script>
