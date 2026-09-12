@@ -1,0 +1,374 @@
+<!-- ================================================================
+  もとぶ会（焼肉もとぶ牧場 那覇店）会員登録・マイページ（LIFF）
+  設置方法：このHTMLをGitHub Pages等に配置し、LIFFのエンドポイントURLに指定
+  ※ LINEアプリ外（LIFF SDKが読めない環境）で開くとサンプル表示（デモ）になります
+  ================================================================ -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>もとぶ会 会員証</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Bodoni+Moda:opsz,wght@6..96,600&family=Noto+Sans+JP:wght@400;500;700&display=swap">
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+<style>
+:root{
+  --bg:#f2f0ed; --bg2:#ffffff; --ink:#2b2624; --ink2:#6b625d; --line:#dcd6cc;
+  --gold:#a1862a; --gold-l:#c9ad4f; --red:#af1d12;
+  --card:#1d1a18; --card2:#2a2523; --card-ink:#f2ede2; --card-dim:#a89f8f;
+  --ok:#2f7d4f; --err:#af1d12;
+  --mincho:"Shippori Mincho","Hiragino Mincho ProN","Yu Mincho",YuMincho,serif;
+  --sans:"Noto Sans JP","Hiragino Sans","Yu Gothic",YuGothic,sans-serif;
+  --grade:"Bodoni Moda","Didot","Times New Roman",serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#161311; --bg2:#211d1a; --ink:#f0eae0; --ink2:#a89f8f; --line:#3a332e;
+    --gold:#c9ad4f; --gold-l:#e0c96e; --red:#d9483b;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#161311; --bg2:#211d1a; --ink:#f0eae0; --ink2:#a89f8f; --line:#3a332e;
+  --gold:#c9ad4f; --gold-l:#e0c96e; --red:#d9483b;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.7;-webkit-font-smoothing:antialiased;min-height:100vh}
+.wrap{max-width:480px;margin-inline:auto;padding:0 1.2rem 3rem}
+
+header{text-align:center;padding:1.8rem 1rem 1.2rem}
+header .mark{font-family:var(--mincho);font-size:1.55rem;letter-spacing:.3em;font-weight:700;margin:0;text-indent:.3em}
+header .sub{font-size:.68rem;letter-spacing:.26em;color:var(--gold);margin:.15rem 0 0;font-weight:500}
+header .line{width:36px;height:2px;background:var(--gold);margin:.9rem auto 0}
+
+.state{display:none}.state.on{display:block}
+.center{text-align:center;padding:2.5rem 1rem}
+.center p{font-size:.88rem;color:var(--ink2);margin:0 0 .4rem}
+.center h2{font-family:var(--mincho);font-size:1.2rem;letter-spacing:.12em;margin:0 0 .5rem;font-weight:700}
+.spinner{width:32px;height:32px;border:2px solid var(--line);border-top-color:var(--gold);border-radius:50%;margin:0 auto 1rem;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){.spinner{animation:none}}
+
+/* ---- 登録フォーム ---- */
+.lead{text-align:center;font-size:.9rem;color:var(--ink2);margin:.6rem 0 1.6rem;line-height:1.9}
+.lead b{color:var(--ink);font-weight:700}
+.field{margin-bottom:1.3rem}
+.field label{display:block;font-size:.82rem;letter-spacing:.06em;margin-bottom:.4rem;font-weight:700}
+.field label .req{font-size:.64rem;background:var(--red);color:#fff;padding:.1rem .4rem;margin-left:.45rem;font-weight:700;letter-spacing:.04em;border-radius:2px}
+.field label .opt{font-size:.64rem;color:var(--ink2);margin-left:.45rem;font-weight:400}
+.field input,.field select{width:100%;padding:.85rem .9rem;font-size:16px;background:var(--bg2);border:1px solid var(--line);color:var(--ink);font-family:var(--sans);border-radius:4px;appearance:none}
+.field input:focus,.field select:focus{outline:none;border-color:var(--gold)}
+.field .hint{font-size:.72rem;color:var(--ink2);margin:.3rem 0 0}
+.field .msg{font-size:.74rem;color:var(--err);margin:.3rem 0 0;display:none}
+.field.err input,.field.err .seg{border-color:var(--err)}
+.field.err .msg{display:block}
+.seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:4px;overflow:hidden;background:var(--bg2)}
+.seg label{margin:0;position:relative}
+.seg input{position:absolute;opacity:0;inset:0;width:100%;height:100%;margin:0;cursor:pointer}
+.seg span{display:block;text-align:center;padding:.8rem .2rem;font-size:.86rem;font-weight:500;border-right:1px solid var(--line)}
+.seg label:last-child span{border-right:none}
+.seg input:checked + span{background:var(--ink);color:var(--bg)}
+.seg input:focus-visible + span{outline:2px solid var(--gold);outline-offset:-2px}
+button.submit{width:100%;padding:1rem;font-size:.95rem;font-weight:700;letter-spacing:.16em;background:var(--red);color:#fff;border:none;cursor:pointer;font-family:var(--sans);border-radius:4px}
+button.submit:disabled{opacity:.45}
+.note{font-size:.72rem;color:var(--ink2);text-align:center;margin-top:1.1rem;line-height:1.8}
+
+/* ---- 会員証 ---- */
+.card{background:var(--card);color:var(--card-ink);border-radius:10px;padding:1.2rem 1.25rem 1.1rem;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.card::before{content:"";position:absolute;inset:8px;border:1px solid rgba(201,173,79,.35);border-radius:6px;pointer-events:none}
+.card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:.8rem}
+.card .brand{font-family:var(--mincho);font-size:.78rem;letter-spacing:.2em;color:var(--card-dim)}
+.card .brand b{display:block;font-size:1rem;color:var(--card-ink);font-weight:700;letter-spacing:.14em;margin-top:.1rem}
+.grade{text-align:right;line-height:1}
+.grade .g{font-family:var(--grade);font-size:2.6rem;font-weight:600;color:var(--gold-l);letter-spacing:-.02em}
+.grade .g.owner{font-family:var(--mincho);font-size:1.25rem;letter-spacing:.1em;padding-top:.6rem}
+.grade .gl{font-size:.6rem;letter-spacing:.2em;color:var(--card-dim);margin-top:.25rem}
+.card .who{margin:1.1rem 0 0;font-family:var(--mincho);font-size:1.25rem;letter-spacing:.08em;font-weight:500}
+.card .who small{font-size:.7rem;color:var(--card-dim);letter-spacing:.14em;margin-left:.5rem;font-family:var(--sans)}
+.card .nums{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.9rem;padding-top:.9rem;border-top:1px solid rgba(255,255,255,.1)}
+.card .nums .k{font-size:.62rem;letter-spacing:.16em;color:var(--card-dim)}
+.card .nums .v{font-family:var(--grade);font-size:2rem;font-weight:600;line-height:1.1;font-variant-numeric:tabular-nums}
+.card .nums .v small{font-family:var(--sans);font-size:.7rem;font-weight:400;color:var(--card-dim);margin-left:.2rem}
+.card .exp{font-size:.66rem;color:var(--card-dim);margin:.8rem 0 0;letter-spacing:.04em}
+.show{font-size:.78rem;text-align:center;color:var(--ink2);margin:.9rem 0 0}
+.show b{color:var(--red);font-weight:700}
+
+/* ---- 次の特典 ---- */
+.next{margin:1.6rem 0 0;background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:1rem 1.1rem}
+.next .t{font-size:.7rem;letter-spacing:.18em;color:var(--gold);font-weight:700;margin:0 0 .3rem}
+.next .n{font-size:.95rem;margin:0;font-weight:500}
+.next .n b{color:var(--red)}
+.bar{height:6px;background:var(--line);border-radius:3px;margin:.7rem 0 .3rem;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),var(--gold-l));border-radius:3px}
+.next .s{font-size:.7rem;color:var(--ink2);display:flex;justify-content:space-between;font-variant-numeric:tabular-nums}
+
+/* ---- 特典一覧 ---- */
+h3{font-family:var(--mincho);font-size:1rem;letter-spacing:.16em;font-weight:700;margin:2rem 0 .7rem;padding-left:.7rem;border-left:3px solid var(--gold)}
+.rw{display:grid;gap:.4rem}
+.r{display:grid;grid-template-columns:3.4rem 1fr auto;align-items:center;gap:.7rem;background:var(--bg2);border:1px solid var(--line);border-radius:6px;padding:.7rem .9rem}
+.r .p{font-family:var(--grade);font-size:1.35rem;font-weight:600;color:var(--gold);font-variant-numeric:tabular-nums;line-height:1}
+.r .p small{font-family:var(--sans);font-size:.6rem;font-weight:400;color:var(--ink2);margin-left:.1rem}
+.r .n{font-size:.88rem;font-weight:500}
+.r .st{font-size:.66rem;letter-spacing:.06em;padding:.2rem .5rem;border-radius:2px;white-space:nowrap;color:var(--ink2);border:1px solid var(--line)}
+.r.ready{border-color:var(--gold)}
+.r.ready .st{background:var(--gold);color:#fff;border-color:var(--gold)}
+.hint2{font-size:.72rem;color:var(--ink2);margin:.6rem 0 0;line-height:1.8}
+
+/* ---- ランク ---- */
+.rk{display:grid;gap:.35rem}
+.rr{display:grid;grid-template-columns:3.2rem 1fr;gap:.7rem;align-items:start;padding:.7rem .9rem;border-radius:6px;border:1px solid var(--line);background:var(--bg2)}
+.rr .g{font-family:var(--grade);font-size:1.35rem;font-weight:600;color:var(--ink2);line-height:1.2}
+.rr .g.owner{font-family:var(--mincho);font-size:.8rem;letter-spacing:.06em;line-height:1.3;padding-top:.15rem}
+.rr .c{font-size:.68rem;color:var(--ink2);letter-spacing:.04em}
+.rr .b{font-size:.84rem;margin:.1rem 0 0}
+.rr.now{border-color:var(--gold);background:var(--card);color:var(--card-ink)}
+.rr.now .g{color:var(--gold-l)}
+.rr.now .c{color:var(--card-dim)}
+.rr.now .c::after{content:"いまここ";margin-left:.5rem;background:var(--gold);color:#fff;padding:.05rem .4rem;border-radius:2px;font-size:.6rem}
+
+/* ---- 店舗・フッター ---- */
+.shop{margin:2rem 0 0;padding-top:1.2rem;border-top:1px solid var(--line);font-size:.78rem;color:var(--ink2);line-height:1.9}
+.shop b{color:var(--ink);font-family:var(--mincho);letter-spacing:.08em;font-size:.9rem}
+.shop a{color:var(--ink2)}
+.fradd{display:none;margin-top:1.2rem;padding:1rem;background:#06C755;border-radius:4px;text-align:center;color:#fff;text-decoration:none;font-size:.92rem;font-weight:700;letter-spacing:.06em}
+.fradd span{display:block;font-size:.72rem;font-weight:400;opacity:.9;margin-top:3px}
+.demo{position:fixed;left:0;right:0;top:0;background:var(--red);color:#fff;font-size:.7rem;text-align:center;padding:.25rem;letter-spacing:.1em;z-index:9;display:none}
+.demo.on{display:block}
+</style>
+
+<div class="demo" id="demoBar">サンプル表示（LINEアプリ内で開くと実際の会員証になります）</div>
+<div class="wrap">
+
+<header>
+  <p class="mark">もとぶ会</p>
+  <p class="sub">MOTOBU MEMBERS</p>
+  <div class="line"></div>
+</header>
+
+<!-- ===== 読み込み中 ===== -->
+<div class="state on center" id="loading"><div class="spinner"></div><p>読み込んでいます…</p></div>
+
+<!-- ===== 登録フォーム ===== -->
+<div class="state" id="form">
+  <p class="lead">焼肉もとぶ牧場 那覇店の会員プログラムです。<br>
+    ご来店ごとにポイントが貯まり、<br><b>ドリンク・お肉・牧場ギフト</b>と交換できます。</p>
+
+  <div class="field" id="f-name">
+    <label for="name">お名前<span class="req">必須</span></label>
+    <input type="text" id="name" placeholder="例：比嘉" autocomplete="name">
+    <p class="msg">お名前をご入力ください</p>
+  </div>
+
+  <div class="field" id="f-birth">
+    <label for="birth">お誕生月<span class="req">必須</span></label>
+    <select id="birth">
+      <option value="">選択してください</option>
+      <option value="1">1月</option><option value="2">2月</option><option value="3">3月</option>
+      <option value="4">4月</option><option value="5">5月</option><option value="6">6月</option>
+      <option value="7">7月</option><option value="8">8月</option><option value="9">9月</option>
+      <option value="10">10月</option><option value="11">11月</option><option value="12">12月</option>
+    </select>
+    <p class="hint">誕生月に「もとぶ牛1皿」をプレゼントします</p>
+    <p class="msg">お誕生月を選択してください</p>
+  </div>
+
+  <div class="field" id="f-store">
+    <label for="store">よく行く店舗<span class="req">必須</span></label>
+    <select id="store">
+      <option value="那覇店" selected>那覇店（久茂地）</option>
+      <option value="国際通り店">国際通り店</option>
+      <option value="もとぶ店">もとぶ店</option>
+      <option value="名護店">名護店</option>
+      <option value="カラコロ店">焼肉銀山和牛 カラコロ店</option>
+    </select>
+    <p class="hint">ポイント・特典は現在、那覇店でご利用いただけます</p>
+  </div>
+
+  <div class="field" id="f-area">
+    <label>お住まい<span class="req">必須</span></label>
+    <div class="seg">
+      <label><input type="radio" name="area" value="那覇市内"><span>那覇市内</span></label>
+      <label><input type="radio" name="area" value="沖縄県内"><span>沖縄県内</span></label>
+      <label><input type="radio" name="area" value="県外"><span>県外</span></label>
+    </div>
+    <p class="hint">県内の方には県民デーなど地元向けのご案内をお送りします</p>
+    <p class="msg">お住まいを選択してください</p>
+  </div>
+
+  <button class="submit" id="submit">登 録 す る</button>
+  <p class="note">ご登録情報は、もとぶ会のポイント管理とご案内のみに使用します。</p>
+</div>
+
+<!-- ===== 送信中 ===== -->
+<div class="state center" id="sending"><div class="spinner"></div><p>登録しています…</p></div>
+
+<!-- ===== エラー ===== -->
+<div class="state center" id="error"><h2>表示できません</h2><p id="errMsg">この画面はLINEアプリ内でお開きください。</p></div>
+
+<!-- ===== マイページ（登録直後・登録済み共通） ===== -->
+<div class="state" id="mypage">
+  <p class="lead" id="mp-lead" style="display:none">ご登録ありがとうございます。<br>こちらが会員証です。</p>
+
+  <div class="card">
+    <div class="top">
+      <div class="brand" id="c-store">焼肉もとぶ牧場<b>もとぶ会 会員証</b></div>
+      <div class="grade"><div class="g" id="c-grade">A3</div><div class="gl" id="c-gradel">MEMBER</div></div>
+    </div>
+    <p class="who"><span id="c-name">—</span> 様<small id="c-id">—</small></p>
+    <div class="nums">
+      <div><div class="k">POINT</div><div class="v"><span id="c-pt">0</span><small>P</small></div></div>
+      <div><div class="k">来店回数</div><div class="v"><span id="c-visits">0</span><small>回</small></div></div>
+    </div>
+    <p class="exp" id="c-exp"></p>
+  </div>
+  <p class="show">お会計のとき、<b>この画面をスタッフにお見せください</b><br><span style="font-size:.7rem">※ ポイント・特典は現在、那覇店でご利用いただけます</span></p>
+  <a class="fradd" href="https://lin.ee/XXXXXXX">もとぶ牧場 那覇店の公式LINEを友だち追加<span>ポイント通知・特典のご案内が届きます</span></a>
+
+  <div class="next">
+    <p class="t">NEXT REWARD</p>
+    <p class="n" id="n-text">—</p>
+    <div class="bar"><i id="n-bar" style="width:0%"></i></div>
+    <div class="s"><span id="n-from">0P</span><span id="n-to">3P</span></div>
+  </div>
+
+  <h3>ポイントで交換できる特典</h3>
+  <div class="rw" id="rewards"></div>
+  <p class="hint2">スタッフに「◯Pの特典と交換」とお伝えください。その場でポイントを差し引きます。<br>
+    ポイントの有効期限は最後に貯まった日から1年。ご来店のたびに延長されます。</p>
+
+  <h3>ランクと毎回の特典</h3>
+  <div class="rk" id="ranks"></div>
+  <p class="hint2">ランクは累計の来店回数で決まり、ポイントを使っても下がりません。<br>
+    お誕生月はランクにかかわらず「もとぶ牛1皿」をプレゼント。</p>
+
+  <div class="shop">
+    <b>焼肉もとぶ牧場 那覇店</b><br>
+    那覇市久茂地2-1-3 久茂地MKビル3F<br>
+    <a href="tel:0989433897">098-943-3897</a>　ランチ 11:30–15:00／ディナー 15:00–22:00
+  </div>
+</div>
+
+</div>
+
+<script>
+/* ===== 設定 ===== */
+const LIFF_ID = '2011569278-JB6YqS6q';
+const GAS_URL = 'https://script.google.com/macros/s/AKfycbyrJZpUwgBXEFvh3DQXdZ22gm6d7AgugFT1utilMVCvkSzA4ufRNRC0D_rTiC27CzW2Dg/exec';
+const FRIEND_URL = 'https://lin.ee/XXXXXXX';   // 公式LINEの友だち追加URL
+
+/* 特典・ランク（GASの CONFIG と同じ内容にしておく。GASから取得できた場合はそちらを優先） */
+let REWARDS = [
+  { pt: 3,  name: '生ビール or ソフトドリンク 1杯' },
+  { pt: 6,  name: 'もとぶ牛ホルモン 1皿' },
+  { pt: 10, name: 'お会計から ¥1,000 引き' },
+  { pt: 15, name: 'もとぶ牛カルビ or ロース 1皿' },
+  { pt: 20, name: '牧場ギフト（ハンバーグ・カレー等）1点' },
+];
+let RANKS = [
+  { grade: 'A3', visits: 0,  label: 'MEMBER', perk: 'ライス大盛り無料／誕生月ドリンク1杯' },
+  { grade: 'A4', visits: 5,  label: 'REGULAR', perk: '毎回ドリンク1杯無料（1名分）' },
+  { grade: 'A5', visits: 12, label: 'PREMIUM', perk: '毎回お会計5%OFF／同伴の方全員に乾杯ドリンク1杯' },
+  { grade: '牧場オーナー', visits: 30, label: 'OWNER', perk: '毎回お会計10%OFF／年1回ギフトセット／個室優先予約' },
+];
+
+const $ = id => document.getElementById(id);
+const show = id => { document.querySelectorAll('.state').forEach(e => e.classList.remove('on')); $(id).classList.add('on'); };
+let userId = '', staffCode = new URLSearchParams(location.search).get('staff') || '';
+
+function rankOf(visits){ let r = RANKS[0]; RANKS.forEach(k => { if (visits >= k.visits) r = k; }); return r; }
+
+function renderMember(m, justRegistered){
+  const pt = Number(m.points) || 0, visits = Number(m.visits) || 0;
+  const rk = rankOf(visits);
+  $('mp-lead').style.display = justRegistered ? 'block' : 'none';
+  $('c-name').textContent = m.name; $('c-id').textContent = m.id;
+  $('c-store').firstChild.textContent = '焼肉もとぶ牧場 ' + (m.store || '那覇店');
+  $('c-pt').textContent = pt; $('c-visits').textContent = visits;
+  $('c-grade').textContent = rk.grade; $('c-grade').classList.toggle('owner', rk.grade.length > 2);
+  $('c-gradel').textContent = rk.label;
+  $('c-exp').textContent = m.expiry ? `ポイント有効期限 ${m.expiry}` : '';
+
+  const next = REWARDS.find(r => r.pt > pt);
+  const prev = [...REWARDS].reverse().find(r => r.pt <= pt);
+  const from = prev ? prev.pt : 0;
+  if (next){
+    $('n-text').innerHTML = `あと <b>${next.pt - pt}P</b> で「${next.name}」`;
+    $('n-bar').style.width = Math.min(100, Math.round((pt - from) / (next.pt - from) * 100)) + '%';
+    $('n-from').textContent = from + 'P'; $('n-to').textContent = next.pt + 'P';
+  } else {
+    $('n-text').innerHTML = 'すべての特典と交換できます';
+    $('n-bar').style.width = '100%'; $('n-from').textContent = ''; $('n-to').textContent = pt + 'P';
+  }
+  $('rewards').innerHTML = REWARDS.map(r => `
+    <div class="r${pt >= r.pt ? ' ready' : ''}">
+      <div class="p">${r.pt}<small>P</small></div>
+      <div class="n">${esc(r.name)}</div>
+      <div class="st">${pt >= r.pt ? '交換できます' : 'あと' + (r.pt - pt) + 'P'}</div>
+    </div>`).join('');
+  $('ranks').innerHTML = RANKS.map(k => `
+    <div class="rr${k === rk ? ' now' : ''}">
+      <div class="g${k.grade.length > 2 ? ' owner' : ''}">${esc(k.grade)}</div>
+      <div><div class="c">${k.visits === 0 ? 'ご登録から' : '累計' + k.visits + '回のご来店から'}</div><div class="b">${esc(k.perk)}</div></div>
+    </div>`).join('');
+  show('mypage'); window.scrollTo(0, 0);
+}
+
+function demo(){
+  $('demoBar').classList.add('on'); document.body.style.paddingTop = '1.4rem';
+  renderMember({ id: 'MB0042', name: '比嘉', store: '那覇店', points: 7, visits: 7, expiry: '2027年9月12日' }, false);
+}
+
+(async () => {
+  if (typeof liff === 'undefined' || new URLSearchParams(location.search).has('demo')) { demo(); return; }
+  try {
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()) { liff.login(); return; }
+    checkFriendship();
+    const profile = await liff.getProfile();
+    userId = profile.userId;
+    if (!staffCode) {
+      const st = new URLSearchParams(location.search).get('liff.state');
+      if (st) staffCode = new URLSearchParams(st.replace(/^\?/, '')).get('staff') || '';
+    }
+    const res = await fetch(`${GAS_URL}?action=check&userId=${encodeURIComponent(userId)}`);
+    const data = await res.json();
+    if (data.rewards && data.rewards.length) REWARDS = data.rewards;
+    if (data.ranks && data.ranks.length) RANKS = data.ranks;
+    if (data.registered) { renderMember(data.member, false); return; }
+    $('name').value = profile.displayName || '';
+    show('form');
+  } catch (e) {
+    $('errMsg').textContent = 'この画面はLINEアプリ内でお開きください。';
+    show('error');
+  }
+})();
+
+$('submit').addEventListener('click', async () => {
+  const name = $('name').value.trim();
+  const birth = $('birth').value;
+  const store = $('store').value;
+  const areaEl = document.querySelector('input[name=area]:checked');
+  const area = areaEl ? areaEl.value : '';
+  let ok = true;
+  [['f-name', !!name], ['f-birth', !!birth], ['f-area', !!area]].forEach(([id, valid]) => {
+    $(id).classList.toggle('err', !valid); if (!valid) ok = false;
+  });
+  if (!ok) return;
+  show('sending');
+  try {
+    const res = await fetch(GAS_URL, {
+      method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'register', userId, name, birth, area, store, staff: staffCode })
+    });
+    const data = await res.json();
+    if (!data.ok) throw new Error(data.error || 'failed');
+    renderMember(data.member, !data.duplicated);
+  } catch (e) {
+    $('errMsg').textContent = '登録に失敗しました。通信環境をご確認のうえ、もう一度お試しください。';
+    show('error');
+  }
+});
+
+async function checkFriendship(){
+  try { const f = await liff.getFriendship(); if (f && f.friendFlag) return; } catch (e) {}
+  document.querySelectorAll('.fradd').forEach(e => { e.href = FRIEND_URL; e.style.display = 'block'; });
+}
+function esc(s){ return String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+</script>
